@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">d-tracker-android</string>
+    <string name="server_url">https://acoustic-shrimp-786.convex.site/records</string>
+</resources>
