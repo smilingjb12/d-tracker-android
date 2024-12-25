@@ -108,9 +108,21 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun schedulePeriodicWork() {
+        val constraints = Constraints.Builder()
+            .setRequiredNetworkType(NetworkType.CONNECTED)
+            .setRequiresBatteryNotLow(false)
+            .build()
+
         val periodicWorkRequest = PeriodicWorkRequestBuilder<DataSenderWorker>(
-            20, TimeUnit.MINUTES
-        ).build()
+            20, TimeUnit.MINUTES,
+            10, TimeUnit.MINUTES  // Flex interval: can run between 10-20 minutes
+        )
+            .setConstraints(constraints)
+            .setBackoffCriteria(
+                BackoffPolicy.LINEAR,
+                15, TimeUnit.MINUTES
+            )
+            .build()
 
         WorkManager.getInstance(applicationContext).enqueueUniquePeriodicWork(
             "DataSenderWork",
