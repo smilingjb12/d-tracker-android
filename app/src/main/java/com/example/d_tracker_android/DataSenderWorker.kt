@@ -9,11 +9,15 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.net.HttpURLConnection
 import java.net.URL
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.tasks.Tasks
 
 class DataSenderWorker(appContext: Context, workerParams: WorkerParameters) :
     CoroutineWorker(appContext, workerParams) {
 
     private val TAG = "DataSenderWorker"
+    private val fusedLocationClient: FusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(appContext)
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         try {
@@ -64,13 +68,15 @@ class DataSenderWorker(appContext: Context, workerParams: WorkerParameters) :
         var latitude = 0.0
         var longitude = 0.0
         try {
-            val locationManager = applicationContext.getSystemService(Context.LOCATION_SERVICE) as android.location.LocationManager
-            val location = locationManager.getLastKnownLocation(android.location.LocationManager.GPS_PROVIDER)
+            val locationTask = fusedLocationClient.lastLocation
+            val location = Tasks.await(locationTask)
             if (location != null) {
                 latitude = location.latitude
                 longitude = location.longitude
             }
         } catch (e: SecurityException) {
+            e.printStackTrace()
+        } catch (e: Exception) {
             e.printStackTrace()
         }
         return Pair(latitude, longitude)
