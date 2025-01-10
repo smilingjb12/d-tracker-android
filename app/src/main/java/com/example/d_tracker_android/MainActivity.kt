@@ -126,7 +126,7 @@ class MainActivity : AppCompatActivity() {
 
         WorkManager.getInstance(applicationContext).enqueueUniquePeriodicWork(
             "DataSenderWork",
-            ExistingPeriodicWorkPolicy.KEEP,
+            ExistingPeriodicWorkPolicy.CANCEL_AND_REENQUEUE,
             periodicWorkRequest
         )
     }
