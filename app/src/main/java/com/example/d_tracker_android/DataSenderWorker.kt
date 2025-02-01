@@ -27,11 +27,14 @@ class DataSenderWorker(appContext: Context, workerParams: WorkerParameters) :
 
             var urlFromSettings = applicationContext.getString(R.string.server_url)
             val url = URL(urlFromSettings)
-            val connection = url.openConnection() as HttpURLConnection
-            connection.requestMethod = "POST"
-            connection.doOutput = true
-            connection.setRequestProperty("Content-Type", "application/json")
-            connection.setRequestProperty("authorization-key", applicationContext.getString(R.string.authorization_key))
+            val connection = (url.openConnection() as HttpURLConnection).apply {
+                connectTimeout = 30000 // 30 seconds
+                readTimeout = 30000    // 30 seconds
+                requestMethod = "POST"
+                doOutput = true
+                setRequestProperty("Content-Type", "application/json")
+                setRequestProperty("authorization-key", applicationContext.getString(R.string.authorization_key))
+            }
 
             Log.d(TAG, "Sending data - Battery: $batteryLevel, Location: ($latitude, $longitude)")
             val postData = """
@@ -46,16 +49,23 @@ class DataSenderWorker(appContext: Context, workerParams: WorkerParameters) :
             val responseCode = connection.responseCode
             Log.d(TAG, "GOT RESPONSE ${connection.responseMessage}")
 
-            return@withContext if (responseCode == HttpURLConnection.HTTP_OK) {
-                Log.d(TAG, "Data sent successfully")
-                Result.success()
-            } else {
-                Log.e(TAG, "Failed to send data, response code: $responseCode")
-                Result.retry()
+            return@withContext when (responseCode) {
+                HttpURLConnection.HTTP_OK -> {
+                    Log.d(TAG, "Data sent successfully")
+                    Result.success()
+                }
+                in 500..599 -> {
+                    Log.e(TAG, "Server error, will retry. Response code: $responseCode")
+                    Result.retry()
+                }
+                else -> {
+                    Log.e(TAG, "Failed to send data, response code: $responseCode")
+                    if (runAttemptCount < 3) Result.retry() else Result.failure()
+                }
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error in worker execution", e)
-            Result.retry()
+            if (runAttemptCount < 3) Result.retry() else Result.failure()
         }
     }
 

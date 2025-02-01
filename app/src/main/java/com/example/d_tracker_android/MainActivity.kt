@@ -11,6 +11,10 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.work.*
 import java.util.concurrent.TimeUnit
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
+import android.os.PowerManager
 
 class MainActivity : AppCompatActivity() {
     private val TAG = "MainActivity"
@@ -20,14 +24,13 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         requestNotificationPermission()
+        requestBatteryOptimizationExemption()
 
         if (checkPermissions()) {
-            // Removed call to startDataSenderServiceIfNotRunning
+            schedulePeriodicWork()
         } else {
             requestPermissions()
         }
-
-        schedulePeriodicWork()
     }
 
     private fun requestNotificationPermission() {
@@ -35,6 +38,18 @@ class MainActivity : AppCompatActivity() {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
                 ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.POST_NOTIFICATIONS), NOTIFICATION_PERMISSION_REQUEST_CODE)
             }
+        }
+    }
+
+    private fun requestBatteryOptimizationExemption() {
+        val powerManager = getSystemService(POWER_SERVICE) as PowerManager
+        val packageName = packageName
+        if (!powerManager.isIgnoringBatteryOptimizations(packageName)) {
+            val intent = Intent().apply {
+                action = Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS
+                data = Uri.parse("package:$packageName")
+            }
+            startActivity(intent)
         }
     }
 
@@ -93,7 +108,7 @@ class MainActivity : AppCompatActivity() {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == LOCATION_PERMISSION_REQUEST_CODE) {
             if (grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
-                // Removed call to startDataSenderServiceIfNotRunning
+                schedulePeriodicWork()
             } else {
                 Toast.makeText(this, "Location permission is required", Toast.LENGTH_LONG).show()
             }
@@ -111,22 +126,24 @@ class MainActivity : AppCompatActivity() {
         val constraints = Constraints.Builder()
             .setRequiredNetworkType(NetworkType.CONNECTED)
             .setRequiresBatteryNotLow(false)
+            .setRequiresDeviceIdle(false)
             .build()
 
         val periodicWorkRequest = PeriodicWorkRequestBuilder<DataSenderWorker>(
-            20, TimeUnit.MINUTES,
-            10, TimeUnit.MINUTES  // Flex interval: can run between 10-20 minutes
+            30, TimeUnit.MINUTES,
+            5, TimeUnit.MINUTES
         )
             .setConstraints(constraints)
             .setBackoffCriteria(
                 BackoffPolicy.LINEAR,
-                15, TimeUnit.MINUTES
+                10, TimeUnit.MINUTES
             )
+            .addTag("location_tracking")
             .build()
 
         WorkManager.getInstance(applicationContext).enqueueUniquePeriodicWork(
             "DataSenderWork",
-            ExistingPeriodicWorkPolicy.CANCEL_AND_REENQUEUE,
+            ExistingPeriodicWorkPolicy.UPDATE,
             periodicWorkRequest
         )
     }
