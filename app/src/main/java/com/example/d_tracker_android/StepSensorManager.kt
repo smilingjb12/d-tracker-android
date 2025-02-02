@@ -72,8 +72,7 @@ class StepSensorManager(context: Context) : SensorEventListener {
         sensorManager.registerListener(
             this,
             stepSensor,
-            SensorManager.SENSOR_DELAY_NORMAL,
-            SAMPLING_PERIOD_MICROS
+            SensorManager.SENSOR_DELAY_NORMAL
         )
     }
 

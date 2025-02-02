@@ -15,8 +15,8 @@ class StepCounterWorker(
         val stepSensorManager = StepSensorManager(applicationContext)
         stepSensorManager.startListening()
         
-        // Wait a few seconds to allow the sensor to get a reading
-        delay(3000)
+        // Wait long enough so that the sensor event is received (increased from 3000ms to 6000ms)
+        delay(6000)
         
         stepSensorManager.stopListening()
         return Result.success()
