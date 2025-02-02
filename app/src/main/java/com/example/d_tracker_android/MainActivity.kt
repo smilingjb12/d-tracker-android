@@ -16,9 +16,19 @@ import android.net.Uri
 import android.provider.Settings
 import android.os.PowerManager
 import android.widget.Button
+import com.example.d_tracker_android.workers.DataSenderWorker
+import com.example.d_tracker_android.workers.StepCounterWorker
 
 class MainActivity : AppCompatActivity() {
     private val TAG = "MainActivity"
+
+    companion object {
+        private const val LOCATION_PERMISSION_REQUEST_CODE = 1001
+        private const val NOTIFICATION_PERMISSION_REQUEST_CODE = 1002
+        private const val WORK_REPEAT_INTERVAL = 15L // minutes
+        private const val WORK_FLEX_INTERVAL = 5L // minutes
+        private const val WORK_BACKOFF_DELAY = 10L // minutes
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -31,6 +41,7 @@ class MainActivity : AppCompatActivity() {
 
         if (checkPermissions()) {
             schedulePeriodicWork()
+            scheduleStepCounterWork()
         } else {
             requestPermissions()
         }
@@ -112,6 +123,7 @@ class MainActivity : AppCompatActivity() {
         if (requestCode == LOCATION_PERMISSION_REQUEST_CODE) {
             if (grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
                 schedulePeriodicWork()
+                scheduleStepCounterWork()
             } else {
                 Toast.makeText(this, "Location permission is required", Toast.LENGTH_LONG).show()
             }
@@ -133,13 +145,13 @@ class MainActivity : AppCompatActivity() {
 
     private fun schedulePeriodicWork() {
         val periodicWorkRequest = PeriodicWorkRequestBuilder<DataSenderWorker>(
-            1, TimeUnit.MINUTES,
-            1, TimeUnit.MINUTES
+            WORK_REPEAT_INTERVAL, TimeUnit.MINUTES,
+            WORK_FLEX_INTERVAL, TimeUnit.MINUTES
         )
             .setConstraints(getDefaultConstraints())
             .setBackoffCriteria(
                 BackoffPolicy.LINEAR,
-                10, TimeUnit.MINUTES
+                WORK_BACKOFF_DELAY, TimeUnit.MINUTES
             )
             .addTag("location_tracking")
             .build()
@@ -148,6 +160,24 @@ class MainActivity : AppCompatActivity() {
             "DataSenderWork",
             ExistingPeriodicWorkPolicy.CANCEL_AND_REENQUEUE,
             periodicWorkRequest
+        )
+    }
+
+    private fun scheduleStepCounterWork() {
+        val stepCounterWork = PeriodicWorkRequestBuilder<StepCounterWorker>(
+            WORK_REPEAT_INTERVAL, TimeUnit.MINUTES,
+            WORK_FLEX_INTERVAL, TimeUnit.MINUTES
+        )
+            .setBackoffCriteria(
+                BackoffPolicy.LINEAR,
+                WORK_BACKOFF_DELAY, TimeUnit.MINUTES
+            )
+            .build()
+
+        WorkManager.getInstance(applicationContext).enqueueUniquePeriodicWork(
+            "StepCounterWork",
+            ExistingPeriodicWorkPolicy.KEEP,
+            stepCounterWork
         )
     }
 
@@ -171,10 +201,5 @@ class MainActivity : AppCompatActivity() {
             .enqueue(oneTimeWorkRequest)
 
         Toast.makeText(this, "Data sending job triggered", Toast.LENGTH_SHORT).show()
-    }
-
-    companion object {
-        private const val LOCATION_PERMISSION_REQUEST_CODE = 1001
-        private const val NOTIFICATION_PERMISSION_REQUEST_CODE = 1002
     }
 }

@@ -1,4 +1,4 @@
-package com.example.d_tracker_android
+package com.example.d_tracker_android.workers
 
 import android.content.Context
 import android.util.Log
@@ -49,4 +49,4 @@ class DataSenderWorker(
             if (runAttemptCount < MAX_RETRY_ATTEMPTS) Result.retry() else Result.failure()
         }
     }
-}
+} 

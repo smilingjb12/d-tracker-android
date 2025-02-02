@@ -22,7 +22,7 @@ class TrackerDataCollector(private val context: Context) {
     suspend fun collectData(): TrackerData {
         return TrackerData(
             power = getBatteryLevel(),
-            steps = getStepCount(),
+            steps = stepSensorManager.getLatestStepCount(),
             latitude = getLocation().first,
             longitude = getLocation().second
         )
@@ -45,16 +45,6 @@ class TrackerDataCollector(private val context: Context) {
         } catch (e: Exception) {
             e.printStackTrace()
             Pair(0.0, 0.0)
-        }
-    }
-
-    private suspend fun getStepCount(): Int {
-        return if (stepSensorManager.hasSensor()) {
-            withTimeoutOrNull(1000) { // 1 second timeout
-                stepSensorManager.stepCount.first()
-            } ?: 0
-        } else {
-            0
         }
     }
 } 
