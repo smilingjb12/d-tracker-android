@@ -44,6 +44,8 @@ dependencies {
     implementation(libs.androidx.constraintlayout)
     implementation("androidx.work:work-runtime-ktx:2.10.0")
     implementation(libs.play.services.location)
+    implementation("com.google.android.gms:play-services-fitness:21.1.0")
+    implementation("com.google.android.gms:play-services-auth:20.7.0")
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

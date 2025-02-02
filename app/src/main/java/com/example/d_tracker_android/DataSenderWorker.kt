@@ -18,12 +18,19 @@ class DataSenderWorker(appContext: Context, workerParams: WorkerParameters) :
 
     private val TAG = "DataSenderWorker"
     private val fusedLocationClient: FusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(appContext)
+    private val stepCountManager = StepCountManager(appContext)
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         try {
             Log.d(TAG, "Starting periodic work execution")
             val batteryLevel = getBatteryLevel()
             val (latitude, longitude) = getLocation()
+            val steps = try {
+                stepCountManager.getTodaySteps()
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to get step count", e)
+                0
+            }
 
             var urlFromSettings = applicationContext.getString(R.string.server_url)
             val url = URL(urlFromSettings)
@@ -41,7 +48,8 @@ class DataSenderWorker(appContext: Context, workerParams: WorkerParameters) :
                 {
                     "power": $batteryLevel,
                     "latitude": $latitude,
-                    "longitude": $longitude
+                    "longitude": $longitude,
+                    "steps": $steps
                 }
             """.trimIndent()
 
