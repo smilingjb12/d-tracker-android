@@ -15,16 +15,10 @@ import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
 import android.os.PowerManager
-import com.google.android.gms.auth.api.signin.GoogleSignIn
-import com.google.android.gms.fitness.Fitness
-import com.google.android.gms.fitness.FitnessOptions
-import com.google.android.gms.fitness.data.DataType
+import android.widget.Button
 
 class MainActivity : AppCompatActivity() {
     private val TAG = "MainActivity"
-    private val fitnessOptions = FitnessOptions.builder()
-        .addDataType(DataType.TYPE_STEP_COUNT_DELTA, FitnessOptions.ACCESS_READ)
-        .build()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -32,7 +26,8 @@ class MainActivity : AppCompatActivity() {
 
         requestNotificationPermission()
         requestBatteryOptimizationExemption()
-        requestGoogleFitPermissions()
+
+        setupManualTrigger()
 
         if (checkPermissions()) {
             schedulePeriodicWork()
@@ -58,17 +53,6 @@ class MainActivity : AppCompatActivity() {
                 data = Uri.parse("package:$packageName")
             }
             startActivity(intent)
-        }
-    }
-
-    private fun requestGoogleFitPermissions() {
-        val account = GoogleSignIn.getAccountForExtension(this, fitnessOptions)
-        if (!GoogleSignIn.hasPermissions(account, fitnessOptions)) {
-            GoogleSignIn.requestPermissions(
-                this,
-                GOOGLE_FIT_PERMISSIONS_REQUEST_CODE,
-                account,
-                fitnessOptions)
         }
     }
 
@@ -141,18 +125,18 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun schedulePeriodicWork() {
-        val constraints = Constraints.Builder()
-            .setRequiredNetworkType(NetworkType.CONNECTED)
-            .setRequiresBatteryNotLow(false)
-            .setRequiresDeviceIdle(false)
-            .build()
+    private fun getDefaultConstraints() = Constraints.Builder()
+        .setRequiredNetworkType(NetworkType.CONNECTED)
+        .setRequiresBatteryNotLow(false)
+        .setRequiresDeviceIdle(false)
+        .build()
 
+    private fun schedulePeriodicWork() {
         val periodicWorkRequest = PeriodicWorkRequestBuilder<DataSenderWorker>(
-            30, TimeUnit.MINUTES,
-            5, TimeUnit.MINUTES
+            1, TimeUnit.MINUTES,
+            1, TimeUnit.MINUTES
         )
-            .setConstraints(constraints)
+            .setConstraints(getDefaultConstraints())
             .setBackoffCriteria(
                 BackoffPolicy.LINEAR,
                 10, TimeUnit.MINUTES
@@ -162,14 +146,35 @@ class MainActivity : AppCompatActivity() {
 
         WorkManager.getInstance(applicationContext).enqueueUniquePeriodicWork(
             "DataSenderWork",
-            ExistingPeriodicWorkPolicy.UPDATE,
+            ExistingPeriodicWorkPolicy.CANCEL_AND_REENQUEUE,
             periodicWorkRequest
         )
+    }
+
+    private fun setupManualTrigger() {
+        findViewById<Button>(R.id.sendDataButton).setOnClickListener {
+            if (checkPermissions()) {
+                triggerOneTimeWork()
+            } else {
+                Toast.makeText(this, "Required permissions not granted", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    private fun triggerOneTimeWork() {
+        val oneTimeWorkRequest = OneTimeWorkRequestBuilder<DataSenderWorker>()
+            .setConstraints(getDefaultConstraints())
+            .addTag("manual_data_send")
+            .build()
+
+        WorkManager.getInstance(applicationContext)
+            .enqueue(oneTimeWorkRequest)
+
+        Toast.makeText(this, "Data sending job triggered", Toast.LENGTH_SHORT).show()
     }
 
     companion object {
         private const val LOCATION_PERMISSION_REQUEST_CODE = 1001
         private const val NOTIFICATION_PERMISSION_REQUEST_CODE = 1002
-        private const val GOOGLE_FIT_PERMISSIONS_REQUEST_CODE = 1002
     }
 }

@@ -25,8 +25,6 @@ class DataSenderWorker(
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         try {
-            Log.d(TAG, "Starting periodic work execution")
-            
             val trackerData = dataCollector.collectData()
             Log.d(TAG, "Collected data: $trackerData")
 

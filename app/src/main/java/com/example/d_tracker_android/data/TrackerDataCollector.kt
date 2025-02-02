@@ -2,16 +2,22 @@ package com.example.d_tracker_android.data
 
 import android.content.Context
 import android.os.BatteryManager
-import com.example.d_tracker_android.StepCountManager
+import com.example.d_tracker_android.StepSensorManager
 import com.example.d_tracker_android.models.TrackerData
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.tasks.Tasks
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
 
 class TrackerDataCollector(private val context: Context) {
     private val fusedLocationClient: FusedLocationProviderClient = 
         LocationServices.getFusedLocationProviderClient(context)
-    private val stepCountManager = StepCountManager(context)
+    private val stepSensorManager = StepSensorManager(context)
+
+    init {
+        stepSensorManager.startListening()
+    }
 
     suspend fun collectData(): TrackerData {
         return TrackerData(
@@ -43,9 +49,11 @@ class TrackerDataCollector(private val context: Context) {
     }
 
     private suspend fun getStepCount(): Int {
-        return try {
-            stepCountManager.getTodaySteps()
-        } catch (e: Exception) {
+        return if (stepSensorManager.hasSensor()) {
+            withTimeoutOrNull(1000) { // 1 second timeout
+                stepSensorManager.stepCount.first()
+            } ?: 0
+        } else {
             0
         }
     }
