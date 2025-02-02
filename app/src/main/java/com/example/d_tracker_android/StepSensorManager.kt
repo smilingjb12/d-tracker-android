@@ -9,6 +9,8 @@ import android.util.Log
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 class StepSensorManager(context: Context) : SensorEventListener {
     private val TAG = "StepSensorManager"
@@ -17,8 +19,8 @@ class StepSensorManager(context: Context) : SensorEventListener {
     
     private var dailyBaseline: Float = -1f
     private var currentSteps: Float = 0f
-    private val _stepCount = Channel<Int>()
-    val stepCount: Flow<Int> = _stepCount.receiveAsFlow()
+    private val _stepCount = MutableStateFlow(0)
+    val stepCount: Flow<Int> = _stepCount.asStateFlow()
 
     private val sharedPrefs = context.getSharedPreferences("StepSensorPrefs", Context.MODE_PRIVATE)
     
@@ -76,7 +78,7 @@ class StepSensorManager(context: Context) : SensorEventListener {
 
             currentSteps = currentReading
             val todaySteps = (currentSteps - dailyBaseline).toInt()
-            _stepCount.trySend(if (todaySteps < 0) 0 else todaySteps)
+            _stepCount.value = if (todaySteps < 0) 0 else todaySteps
         }
     }
 
