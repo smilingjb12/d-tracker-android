@@ -11,6 +11,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import android.os.Handler
+import android.os.Looper
 
 class StepSensorManager(context: Context) : SensorEventListener {
     private val TAG = "StepSensorManager"
@@ -69,10 +71,13 @@ class StepSensorManager(context: Context) : SensorEventListener {
             return
         }
         
+        // Use a Handler attached to the main looper to ensure sensor events are received
+        val mainHandler = Handler(Looper.getMainLooper())
         sensorManager.registerListener(
             this,
             stepSensor,
-            SensorManager.SENSOR_DELAY_NORMAL
+            SensorManager.SENSOR_DELAY_NORMAL,
+            mainHandler
         )
     }
 
