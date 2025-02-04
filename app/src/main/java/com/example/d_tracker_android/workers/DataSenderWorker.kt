@@ -7,6 +7,7 @@ import androidx.work.WorkerParameters
 import com.example.d_tracker_android.data.TrackerDataCollector
 import com.example.d_tracker_android.network.TrackerApiService
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import java.net.HttpURLConnection
 
@@ -25,6 +26,9 @@ class DataSenderWorker(
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         try {
+            // Wait for sensor events to update the latest step count when running in background
+            delay(6000)  // <-- Added delay similar to what you use in StepCounterWorker
+
             val trackerData = dataCollector.collectData()
             Log.d(TAG, "Collected data: $trackerData")
 

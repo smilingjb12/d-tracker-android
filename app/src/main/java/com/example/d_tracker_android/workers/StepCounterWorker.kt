@@ -17,6 +17,7 @@ class StepCounterWorker(
         
         // Wait long enough so that the sensor event is received (increased from 3000ms to 6000ms)
         delay(6000)
+        delay(3000)
         
         stepSensorManager.stopListening()
         return Result.success()
