@@ -25,8 +25,8 @@ class MainActivity : AppCompatActivity() {
     companion object {
         private const val LOCATION_PERMISSION_REQUEST_CODE = 1001
         private const val NOTIFICATION_PERMISSION_REQUEST_CODE = 1002
-        private const val WORK_REPEAT_INTERVAL = 15L // minutes
-        private const val WORK_FLEX_INTERVAL = 5L // minutes
+        private const val WORK_REPEAT_INTERVAL = 30L // minutes
+        private const val WORK_FLEX_INTERVAL = 15L // minutes
         private const val WORK_BACKOFF_DELAY = 10L // minutes
     }
 
