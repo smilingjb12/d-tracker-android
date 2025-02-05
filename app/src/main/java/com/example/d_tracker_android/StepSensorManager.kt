@@ -65,19 +65,19 @@ class StepSensorManager(context: Context) : SensorEventListener {
         return sharedPrefs.getInt(KEY_LATEST_STEP_COUNT, DEFAULT_STEP_COUNT)
     }
 
-    fun startListening() {
+    fun startListening(looper: Looper = Looper.getMainLooper()) {
         if (stepSensor == null) {
             Log.w(TAG, "No step sensor available on this device")
             return
         }
         
-        // Use a Handler attached to the main looper to ensure sensor events are received
-        val mainHandler = Handler(Looper.getMainLooper())
+        // Use a Handler attached to the provided looper to receive sensor events
+        val handler = Handler(looper)
         sensorManager.registerListener(
             this,
             stepSensor,
             SensorManager.SENSOR_DELAY_NORMAL,
-            mainHandler
+            handler
         )
     }
 
