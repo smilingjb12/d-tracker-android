@@ -13,57 +13,27 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import android.os.Handler
 import android.os.Looper
+import com.example.d_tracker_android.storage.StepDataStorage
 
 class StepSensorManager(context: Context) : SensorEventListener {
     private val TAG = "StepSensorManager"
     
     companion object {
-        private const val PREFS_NAME = "StepSensorPrefs"
-        private const val KEY_BASELINE = "baseline"
-        private const val KEY_BASELINE_DATE = "baseline_date"
-        private const val KEY_LATEST_STEP_COUNT = "latest_step_count"
         private const val SAMPLING_PERIOD_MICROS = 5000000 // 5 second sampling period
         private const val DEFAULT_BASELINE_VALUE = -1f
         private const val DEFAULT_STEP_COUNT = 0
-        private const val DATE_FORMAT_PATTERN = "yyyy-MM-dd"
     }
 
     private val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
     private val stepSensor: Sensor? = sensorManager.getDefaultSensor(Sensor.TYPE_STEP_COUNTER)
+    private val storage = StepDataStorage(context)
     
     private var dailyBaseline: Float = DEFAULT_BASELINE_VALUE
     private var currentSteps: Float = 0f
     private val _stepCount = MutableStateFlow(DEFAULT_STEP_COUNT)
     val stepCount: Flow<Int> = _stepCount.asStateFlow()
 
-    private val sharedPrefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-    
-    private fun getSavedBaseline(): Float = sharedPrefs.getFloat(KEY_BASELINE, DEFAULT_BASELINE_VALUE)
-    
-    private fun saveBaseline(baseline: Float) {
-        sharedPrefs.edit().putFloat(KEY_BASELINE, baseline).apply()
-    }
-    
-    private fun getSavedDate(): String? = sharedPrefs.getString(KEY_BASELINE_DATE, null)
-    
-    private fun saveDate(date: String) {
-        sharedPrefs.edit().putString(KEY_BASELINE_DATE, date).apply()
-    }
-    
-    private fun getCurrentDay(): String {
-        val sdf = java.text.SimpleDateFormat(DATE_FORMAT_PATTERN, java.util.Locale.getDefault())
-        return sdf.format(java.util.Date())
-    }
-
-    private fun saveLatestStepCount(steps: Int) {
-        sharedPrefs.edit()
-            .putInt(KEY_LATEST_STEP_COUNT, steps)
-            .apply()
-    }
-
-    fun getLatestStepCount(): Int {
-        return sharedPrefs.getInt(KEY_LATEST_STEP_COUNT, DEFAULT_STEP_COUNT)
-    }
+    fun getLatestStepCount(): Int = storage.getLatestStepCount()
 
     fun startListening(looper: Looper = Looper.getMainLooper()) {
         if (stepSensor == null) {
@@ -88,25 +58,25 @@ class StepSensorManager(context: Context) : SensorEventListener {
     override fun onSensorChanged(event: SensorEvent) {
         if (event.sensor.type == Sensor.TYPE_STEP_COUNTER) {
             val currentReading = event.values[0]
-            val today = getCurrentDay()
-            val savedDate = getSavedDate()
+            val today = storage.getCurrentDay()
+            val savedDate = storage.getSavedDate()
 
             // If there's no saved date or it's not today, update baseline for the new day
             if (savedDate == null || savedDate != today) {
                 dailyBaseline = currentReading
-                saveDate(today)
-                saveBaseline(dailyBaseline)
+                storage.saveDate(today)
+                storage.saveBaseline(dailyBaseline)
             } else {
                 // Ensure we use the persisted baseline if not already in memory
                 if (dailyBaseline < 0) {
-                    dailyBaseline = getSavedBaseline()
+                    dailyBaseline = storage.getBaseline()
                 }
             }
 
             currentSteps = currentReading
             val todaySteps = (currentSteps - dailyBaseline).toInt()
             _stepCount.value = todaySteps
-            saveLatestStepCount(todaySteps)  // Save the latest step count
+            storage.saveLatestStepCount(todaySteps)
         }
     }
 
