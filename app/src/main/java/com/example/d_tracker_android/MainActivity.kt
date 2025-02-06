@@ -17,7 +17,6 @@ import android.provider.Settings
 import android.os.PowerManager
 import android.widget.Button
 import com.example.d_tracker_android.workers.DataSenderWorker
-import com.example.d_tracker_android.workers.StepCounterWorker
 
 class MainActivity : AppCompatActivity() {
     private val TAG = "MainActivity"
@@ -41,7 +40,6 @@ class MainActivity : AppCompatActivity() {
 
         if (checkPermissions()) {
             schedulePeriodicWork()
-            scheduleStepCounterWork()
         } else {
             requestPermissions()
         }
@@ -123,7 +121,6 @@ class MainActivity : AppCompatActivity() {
         if (requestCode == LOCATION_PERMISSION_REQUEST_CODE) {
             if (grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
                 schedulePeriodicWork()
-                scheduleStepCounterWork()
             } else {
                 Toast.makeText(this, "Location permission is required", Toast.LENGTH_LONG).show()
             }
@@ -144,40 +141,26 @@ class MainActivity : AppCompatActivity() {
         .build()
 
     private fun schedulePeriodicWork() {
+        val constraints = Constraints.Builder()
+            .setRequiredNetworkType(NetworkType.CONNECTED)
+            .setRequiresBatteryNotLow(false)
+            .build()
+
         val periodicWorkRequest = PeriodicWorkRequestBuilder<DataSenderWorker>(
-            WORK_REPEAT_INTERVAL, TimeUnit.MINUTES,
-            WORK_FLEX_INTERVAL, TimeUnit.MINUTES
+            30, TimeUnit.MINUTES,  // Run every 15 minutes
+            5, TimeUnit.MINUTES    // Flex interval of 5 minutes
         )
-            .setConstraints(getDefaultConstraints())
+            .setConstraints(constraints)
             .setBackoffCriteria(
                 BackoffPolicy.LINEAR,
-                WORK_BACKOFF_DELAY, TimeUnit.MINUTES
+                10, TimeUnit.MINUTES
             )
-            .addTag("location_tracking")
             .build()
 
         WorkManager.getInstance(applicationContext).enqueueUniquePeriodicWork(
             "DataSenderWork",
-            ExistingPeriodicWorkPolicy.CANCEL_AND_REENQUEUE,
+            ExistingPeriodicWorkPolicy.UPDATE,
             periodicWorkRequest
-        )
-    }
-
-    private fun scheduleStepCounterWork() {
-        val stepCounterWork = PeriodicWorkRequestBuilder<StepCounterWorker>(
-            WORK_REPEAT_INTERVAL, TimeUnit.MINUTES,
-            WORK_FLEX_INTERVAL, TimeUnit.MINUTES
-        )
-            .setBackoffCriteria(
-                BackoffPolicy.LINEAR,
-                WORK_BACKOFF_DELAY, TimeUnit.MINUTES
-            )
-            .build()
-
-        WorkManager.getInstance(applicationContext).enqueueUniquePeriodicWork(
-            "StepCounterWork",
-            ExistingPeriodicWorkPolicy.KEEP,
-            stepCounterWork
         )
     }
 

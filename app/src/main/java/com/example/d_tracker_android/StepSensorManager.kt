@@ -105,9 +105,8 @@ class StepSensorManager(context: Context) : SensorEventListener {
 
             currentSteps = currentReading
             val todaySteps = (currentSteps - dailyBaseline).toInt()
-            val finalSteps = if (todaySteps < 0) 0 else todaySteps
-            _stepCount.value = finalSteps
-            saveLatestStepCount(finalSteps)  // Save the latest step count
+            _stepCount.value = todaySteps
+            saveLatestStepCount(todaySteps)  // Save the latest step count
         }
     }
 

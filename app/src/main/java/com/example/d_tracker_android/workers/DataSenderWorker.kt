@@ -1,9 +1,15 @@
 package com.example.d_tracker_android.workers
 
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.content.Context
+import android.os.Build
+import android.os.HandlerThread
 import android.util.Log
-import androidx.work.CoroutineWorker
-import androidx.work.WorkerParameters
+import androidx.core.app.NotificationCompat
+import androidx.work.*
+import com.example.d_tracker_android.R
+import com.example.d_tracker_android.StepSensorManager
 import com.example.d_tracker_android.data.TrackerDataCollector
 import com.example.d_tracker_android.network.TrackerApiService
 import kotlinx.coroutines.Dispatchers
@@ -19,15 +25,66 @@ class DataSenderWorker(
     companion object {
         private const val TAG = "DataSenderWorker"
         private const val MAX_RETRY_ATTEMPTS = 3
+        private const val NOTIFICATION_ID = 1
+        private const val CHANNEL_ID = "tracker_service_channel"
+        private const val CHANNEL_NAME = "Tracker Service Channel"
+        private const val SENSOR_WARMUP_DELAY = 10000L // 10 seconds to warm up sensors
+        private const val STEP_SENSOR_DELAY = 9000L // 9 seconds for step sensor reading
     }
 
-    private val dataCollector = TrackerDataCollector(appContext)
-    private val apiService = TrackerApiService(appContext)
+    private val dataCollector = TrackerDataCollector(applicationContext)
+    private val apiService = TrackerApiService(applicationContext)
+    private val stepSensorManager = StepSensorManager(applicationContext)
+
+    override suspend fun getForegroundInfo(): ForegroundInfo {
+        createNotificationChannel()
+        
+        val notification = NotificationCompat.Builder(applicationContext, CHANNEL_ID)
+            .setContentTitle("Tracking Active")
+            .setContentText("Collecting and sending data...")
+            .setSmallIcon(R.mipmap.ic_launcher)
+            .setOngoing(true)
+            .build()
+
+        return ForegroundInfo(NOTIFICATION_ID, notification)
+    }
+
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                CHANNEL_ID,
+                CHANNEL_NAME,
+                NotificationManager.IMPORTANCE_LOW
+            ).apply {
+                description = "Used for tracking service"
+            }
+            
+            val notificationManager = applicationContext
+                .getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            notificationManager.createNotificationChannel(channel)
+        }
+    }
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         try {
-            // Wait for sensor events to update the latest step count when running in background
-            delay(6000)  // <-- Added delay similar to what you use in StepCounterWorker
+            // Set as foreground service
+            setForeground(getForegroundInfo())
+            
+            // Create a HandlerThread for step sensor
+            val sensorThread = HandlerThread("StepSensorThread").apply { start() }
+            
+            // Start listening for steps
+            stepSensorManager.startListening(sensorThread.looper)
+            
+            // Give sensors time to warm up and collect initial data
+            delay(SENSOR_WARMUP_DELAY)
+            
+            // Additional delay for step sensor
+            delay(STEP_SENSOR_DELAY)
+            
+            // Stop step sensor listening and clean up
+            stepSensorManager.stopListening()
+            sensorThread.quitSafely()
 
             val trackerData = dataCollector.collectData()
             Log.d(TAG, "Collected data: $trackerData")
