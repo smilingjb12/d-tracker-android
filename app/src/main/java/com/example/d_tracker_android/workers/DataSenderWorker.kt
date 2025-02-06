@@ -67,47 +67,50 @@ class DataSenderWorker(
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         try {
-            // Set as foreground service
             setForeground(getForegroundInfo())
-            
-            // Create a HandlerThread for step sensor
-            val sensorThread = HandlerThread("StepSensorThread").apply { start() }
-            
-            // Start listening for steps
-            stepSensorManager.startListening(sensorThread.looper)
-            
-            // Give sensors time to warm up and collect initial data
-            delay(SENSOR_WARMUP_DELAY)
-            
-            // Additional delay for step sensor
-            delay(STEP_SENSOR_DELAY)
-            
-            // Stop step sensor listening and clean up
-            stepSensorManager.stopListening()
-            sensorThread.quitSafely()
-
-            val trackerData = dataCollector.collectData()
-            Log.d(TAG, "Collected data: $trackerData")
-
-            val responseCode = apiService.sendData(trackerData)
-            
-            return@withContext when (responseCode) {
-                HttpURLConnection.HTTP_OK -> {
-                    Log.d(TAG, "Data sent successfully")
-                    Result.success()
-                }
-                in 500..599 -> {
-                    Log.e(TAG, "Server error, will retry. Response code: $responseCode")
-                    Result.retry()
-                }
-                else -> {
-                    Log.e(TAG, "Failed to send data, response code: $responseCode")
-                    if (runAttemptCount < MAX_RETRY_ATTEMPTS) Result.retry() else Result.failure()
-                }
-            }
+            collectSensorData()
+            return@withContext sendDataToServer()
         } catch (e: Exception) {
             Log.e(TAG, "Error in worker execution", e)
-            if (runAttemptCount < MAX_RETRY_ATTEMPTS) Result.retry() else Result.failure()
+            return@withContext handleError()
         }
+    }
+
+    private suspend fun collectSensorData() {
+        val sensorThread = HandlerThread("StepSensorThread").apply { start() }
+        
+        try {
+            stepSensorManager.startListening(sensorThread.looper)
+            delay(SENSOR_WARMUP_DELAY)
+            delay(STEP_SENSOR_DELAY)
+        } finally {
+            stepSensorManager.stopListening()
+            sensorThread.quitSafely()
+        }
+    }
+
+    private suspend fun sendDataToServer(): Result {
+        val trackerData = dataCollector.collectData()
+        Log.d(TAG, "Collected data: $trackerData")
+
+        val responseCode = apiService.sendData(trackerData)
+        return when (responseCode) {
+            HttpURLConnection.HTTP_OK -> {
+                Log.d(TAG, "Data sent successfully")
+                Result.success()
+            }
+            in 500..599 -> {
+                Log.e(TAG, "Server error, will retry. Response code: $responseCode")
+                Result.retry()
+            }
+            else -> {
+                Log.e(TAG, "Failed to send data, response code: $responseCode")
+                handleError()
+            }
+        }
+    }
+
+    private fun handleError(): Result {
+        return if (runAttemptCount < MAX_RETRY_ATTEMPTS) Result.retry() else Result.failure()
     }
 } 
