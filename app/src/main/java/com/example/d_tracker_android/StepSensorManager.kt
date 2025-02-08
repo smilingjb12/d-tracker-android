@@ -71,6 +71,13 @@ class StepSensorManager(context: Context) : SensorEventListener {
                 if (dailyBaseline < 0) {
                     dailyBaseline = storage.getBaseline()
                 }
+                
+                // Handle phone reboot scenario where current reading is much lower than baseline
+                if (currentReading < dailyBaseline) {
+                    Log.i(TAG, "Detected potential device reboot - resetting baseline")
+                    dailyBaseline = currentReading
+                    storage.saveBaseline(dailyBaseline)
+                }
             }
 
             currentSteps = currentReading
