@@ -8,8 +8,6 @@ import com.example.d_tracker_android.models.TrackerData
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.tasks.Tasks
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.withTimeoutOrNull
 
 class TrackerDataCollector(private val context: Context) {
     private val fusedLocationClient: FusedLocationProviderClient = 

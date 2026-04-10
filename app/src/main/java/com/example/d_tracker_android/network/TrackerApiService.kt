@@ -3,39 +3,38 @@ package com.example.d_tracker_android.network
 import android.content.Context
 import com.example.d_tracker_android.R
 import com.example.d_tracker_android.models.TrackerData
-import java.net.HttpURLConnection
-import java.net.URL
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import javax.inject.Inject
+import javax.inject.Singleton
 
-class TrackerApiService(private val context: Context) {
-    companion object {
-        private const val CONNECT_TIMEOUT = 30000
-        private const val READ_TIMEOUT = 30000
-    }
+@Singleton
+class TrackerApiService @Inject constructor(
+    @ApplicationContext private val context: Context,
+    private val client: OkHttpClient
+) {
+    private val json = Json { encodeDefaults = true }
 
-    suspend fun sendData(data: TrackerData): Int {
-        val urlFromSettings = context.getString(R.string.server_url)
-        val url = URL(urlFromSettings)
-        
-        return (url.openConnection() as HttpURLConnection).apply {
-            connectTimeout = CONNECT_TIMEOUT
-            readTimeout = READ_TIMEOUT
-            requestMethod = "POST"
-            doOutput = true
-            setRequestProperty("Content-Type", "application/json")
-            setRequestProperty("authorization-key", context.getString(R.string.authorization_key))
-            
-            outputStream.use { 
-                it.write(data.toJson().toByteArray()) 
-            }
-        }.responseCode
-    }
+    suspend fun sendData(data: TrackerData): Int = withContext(Dispatchers.IO) {
+        val url = context.getString(R.string.server_url)
+        val body = json.encodeToString(data)
+            .toRequestBody("application/json".toMediaType())
 
-    private fun TrackerData.toJson(): String = """
-        {
-            "power": $power,
-            "latitude": $latitude,
-            "longitude": $longitude,
-            "steps": $steps
+        val request = Request.Builder()
+            .url(url)
+            .post(body)
+            .addHeader("authorization-key", context.getString(R.string.authorization_key))
+            .build()
+
+        client.newCall(request).execute().use { response ->
+            response.code
         }
-    """.trimIndent()
-} 
+    }
+}

@@ -1,17 +1,20 @@
 package com.example.d_tracker_android
 
 import android.app.Application
-import androidx.work.*
+import androidx.hilt.work.HiltWorkerFactory
+import androidx.work.Configuration
+import dagger.hilt.android.HiltAndroidApp
+import javax.inject.Inject
 
-class MainApplication : Application() {
-    override fun onCreate() {
-        super.onCreate()
-        val config = Configuration.Builder()
+@HiltAndroidApp
+class MainApplication : Application(), Configuration.Provider {
+
+    @Inject
+    lateinit var workerFactory: HiltWorkerFactory
+
+    override val workManagerConfiguration: Configuration
+        get() = Configuration.Builder()
+            .setWorkerFactory(workerFactory)
             .setMinimumLoggingLevel(android.util.Log.DEBUG)
-            .setJobSchedulerJobIdRange(1000, 20000)
-            .setMaxSchedulerLimit(50)
             .build()
-
-        WorkManager.initialize(this, config)
-    }
 }

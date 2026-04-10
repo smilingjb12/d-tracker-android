@@ -3,23 +3,29 @@ package com.example.d_tracker_android.workers
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
-import android.os.Build
 import android.os.HandlerThread
 import android.util.Log
 import androidx.core.app.NotificationCompat
-import androidx.work.*
+import androidx.hilt.work.HiltWorker
+import androidx.work.CoroutineWorker
+import androidx.work.ForegroundInfo
+import androidx.work.WorkerParameters
 import com.example.d_tracker_android.R
 import com.example.d_tracker_android.StepSensorManager
 import com.example.d_tracker_android.data.TrackerDataCollector
 import com.example.d_tracker_android.network.TrackerApiService
+import dagger.assisted.Assisted
+import dagger.assisted.AssistedInject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import java.net.HttpURLConnection
 
-class DataSenderWorker(
-    appContext: Context,
-    workerParams: WorkerParameters
+@HiltWorker
+class DataSenderWorker @AssistedInject constructor(
+    @Assisted appContext: Context,
+    @Assisted workerParams: WorkerParameters,
+    private val apiService: TrackerApiService
 ) : CoroutineWorker(appContext, workerParams) {
 
     companion object {
@@ -28,17 +34,13 @@ class DataSenderWorker(
         private const val NOTIFICATION_ID = 1
         private const val CHANNEL_ID = "tracker_service_channel"
         private const val CHANNEL_NAME = "Tracker Service Channel"
-        private const val SENSOR_WARMUP_DELAY = 10000L // 10 seconds to warm up sensors
-        private const val STEP_SENSOR_DELAY = 9000L // 9 seconds for step sensor reading
+        private const val SENSOR_WARMUP_DELAY = 10000L
+        private const val STEP_SENSOR_DELAY = 9000L
     }
-
-    private val dataCollector = TrackerDataCollector(applicationContext)
-    private val apiService = TrackerApiService(applicationContext)
-    private val stepSensorManager = StepSensorManager(applicationContext)
 
     override suspend fun getForegroundInfo(): ForegroundInfo {
         createNotificationChannel()
-        
+
         val notification = NotificationCompat.Builder(applicationContext, CHANNEL_ID)
             .setContentTitle("Tracking Active")
             .setContentText("Collecting and sending data...")
@@ -50,25 +52,24 @@ class DataSenderWorker(
     }
 
     private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                CHANNEL_ID,
-                CHANNEL_NAME,
-                NotificationManager.IMPORTANCE_LOW
-            ).apply {
-                description = "Used for tracking service"
-            }
-            
-            val notificationManager = applicationContext
-                .getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            notificationManager.createNotificationChannel(channel)
+        val channel = NotificationChannel(
+            CHANNEL_ID,
+            CHANNEL_NAME,
+            NotificationManager.IMPORTANCE_LOW
+        ).apply {
+            description = "Used for tracking service"
         }
+
+        val notificationManager = applicationContext
+            .getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        notificationManager.createNotificationChannel(channel)
     }
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         try {
             setForeground(getForegroundInfo())
-            collectSensorData()
+            val stepSensorManager = StepSensorManager(applicationContext)
+            collectSensorData(stepSensorManager)
             return@withContext sendDataToServer()
         } catch (e: Exception) {
             Log.e(TAG, "Error in worker execution", e)
@@ -76,9 +77,9 @@ class DataSenderWorker(
         }
     }
 
-    private suspend fun collectSensorData() {
+    private suspend fun collectSensorData(stepSensorManager: StepSensorManager) {
         val sensorThread = HandlerThread("StepSensorThread").apply { start() }
-        
+
         try {
             stepSensorManager.startListening(sensorThread.looper)
             delay(SENSOR_WARMUP_DELAY)
@@ -90,6 +91,7 @@ class DataSenderWorker(
     }
 
     private suspend fun sendDataToServer(): Result {
+        val dataCollector = TrackerDataCollector(applicationContext)
         val trackerData = dataCollector.collectData()
         Log.d(TAG, "Collected data: $trackerData")
 
@@ -113,4 +115,4 @@ class DataSenderWorker(
     private fun handleError(): Result {
         return if (runAttemptCount < MAX_RETRY_ATTEMPTS) Result.retry() else Result.failure()
     }
-} 
+}
