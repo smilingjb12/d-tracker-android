@@ -1,6 +1,8 @@
 package com.example.d_tracker_android.di
 
 import android.content.Context
+import com.example.d_tracker_android.core.permissions.DefaultPermissionOrchestrator
+import com.example.d_tracker_android.core.permissions.PermissionOrchestrator
 import com.example.d_tracker_android.core.work.TrackingScheduler
 import com.example.d_tracker_android.core.work.TrackingWorkScheduler
 import com.google.android.gms.location.FusedLocationProviderClient
@@ -20,6 +22,11 @@ abstract class AppModule {
     abstract fun bindTrackingScheduler(
         impl: TrackingWorkScheduler
     ): TrackingScheduler
+
+    @Binds
+    abstract fun bindPermissionOrchestrator(
+        impl: DefaultPermissionOrchestrator
+    ): PermissionOrchestrator
 }
 
 @Module

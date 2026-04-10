@@ -1,7 +1,9 @@
 package com.example.d_tracker_android.feature.tracking
 
 import androidx.lifecycle.ViewModel
+import com.example.d_tracker_android.core.permissions.PermissionOrchestrator
 import com.example.d_tracker_android.core.work.TrackingScheduler
+import com.example.d_tracker_android.domain.model.TrackerData
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -13,15 +15,24 @@ data class TrackingUiState(
     val hasTrackingPermissions: Boolean = false,
     val batteryOptimizationIgnored: Boolean = false,
     val periodicWorkScheduled: Boolean = false,
-    val statusMessage: String = "Checking prerequisites..."
+    val statusMessage: String = "Checking prerequisites...",
+    val lastTrackerData: TrackerData? = null
 )
 
 @HiltViewModel
 class TrackingViewModel @Inject constructor(
-    private val trackingScheduler: TrackingScheduler
+    private val trackingScheduler: TrackingScheduler,
+    val permissionOrchestrator: PermissionOrchestrator
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(TrackingUiState())
     val uiState: StateFlow<TrackingUiState> = _uiState.asStateFlow()
+
+    fun refreshPermissionState() {
+        val granted = permissionOrchestrator.hasTrackingPermissions()
+        val batteryIgnored = permissionOrchestrator.isBatteryOptimizationIgnored()
+        onPermissionStateChanged(granted)
+        onBatteryOptimizationStateChanged(batteryIgnored)
+    }
 
     fun onPermissionStateChanged(granted: Boolean) {
         _uiState.update { current ->
@@ -62,5 +73,9 @@ class TrackingViewModel @Inject constructor(
 
         trackingScheduler.triggerOneTimeWork()
         _uiState.update { it.copy(statusMessage = "Manual data sending job enqueued") }
+    }
+
+    fun onDataCollected(data: TrackerData) {
+        _uiState.update { it.copy(lastTrackerData = data) }
     }
 }

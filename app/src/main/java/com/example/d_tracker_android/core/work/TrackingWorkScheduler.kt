@@ -14,6 +14,11 @@ import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 
+interface TrackingScheduler {
+    fun schedulePeriodicWork()
+    fun triggerOneTimeWork()
+}
+
 @Singleton
 class TrackingWorkScheduler @Inject constructor(
     @ApplicationContext private val context: Context

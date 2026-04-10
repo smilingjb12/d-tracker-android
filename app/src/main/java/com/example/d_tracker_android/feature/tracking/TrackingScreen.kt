@@ -23,7 +23,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.d_tracker_android.core.permissions.PermissionOrchestrator
+import com.example.d_tracker_android.domain.model.TrackerData
 
 @Composable
 fun TrackingRoute(
@@ -31,27 +31,26 @@ fun TrackingRoute(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    val permissionOrchestrator = remember(context) { PermissionOrchestrator(context) }
+    val orchestrator = viewModel.permissionOrchestrator
     val activity = remember(context) { context.findActivity() }
 
     val permissionsLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
     ) {
-        viewModel.onPermissionStateChanged(permissionOrchestrator.hasTrackingPermissions())
+        viewModel.refreshPermissionState()
     }
 
     LaunchedEffect(Unit) {
-        viewModel.onPermissionStateChanged(permissionOrchestrator.hasTrackingPermissions())
-        viewModel.onBatteryOptimizationStateChanged(permissionOrchestrator.isBatteryOptimizationIgnored())
+        viewModel.refreshPermissionState()
     }
 
     TrackingScreen(
         state = uiState,
         onRequestPermissions = {
-            permissionsLauncher.launch(permissionOrchestrator.requiredRuntimePermissions().toTypedArray())
+            permissionsLauncher.launch(orchestrator.requiredRuntimePermissions().toTypedArray())
         },
         onRequestBatteryOptimizationDisable = {
-            activity?.startActivity(permissionOrchestrator.createBatteryOptimizationIntent())
+            activity?.startActivity(orchestrator.createBatteryOptimizationIntent())
         },
         onManualSend = viewModel::onManualSendClicked
     )
@@ -92,6 +91,10 @@ private fun TrackingScreen(
             }
         }
 
+        state.lastTrackerData?.let { data ->
+            LastDataCard(data)
+        }
+
         if (!state.hasTrackingPermissions) {
             Button(
                 onClick = onRequestPermissions,
@@ -115,6 +118,24 @@ private fun TrackingScreen(
             modifier = Modifier.fillMaxWidth()
         ) {
             Text("Send Data Now")
+        }
+    }
+}
+
+@Composable
+private fun LastDataCard(data: TrackerData) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(
+                text = "Last Collected Data",
+                style = MaterialTheme.typography.titleMedium
+            )
+            Text(text = "Battery: ${"%.0f".format(data.power)}%")
+            Text(text = "Location: ${"%.5f".format(data.latitude)}, ${"%.5f".format(data.longitude)}")
+            Text(text = "Steps: ${data.steps}")
         }
     }
 }

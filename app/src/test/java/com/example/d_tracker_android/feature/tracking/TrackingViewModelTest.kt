@@ -8,7 +8,7 @@ class TrackingViewModelTest {
     @Test
     fun `schedules periodic work once after permissions granted`() {
         val scheduler = FakeTrackingWorkScheduler()
-        val viewModel = TrackingViewModel(trackingScheduler = scheduler)
+        val viewModel = createViewModel(scheduler)
 
         viewModel.onPermissionStateChanged(true)
         viewModel.onPermissionStateChanged(true)
@@ -20,12 +20,20 @@ class TrackingViewModelTest {
     @Test
     fun `manual send enqueues one-time work when permissions granted`() {
         val scheduler = FakeTrackingWorkScheduler()
-        val viewModel = TrackingViewModel(trackingScheduler = scheduler)
+        val viewModel = createViewModel(scheduler)
 
         viewModel.onPermissionStateChanged(true)
         viewModel.onManualSendClicked()
 
         assertThat(scheduler.manualTriggerCalls).isEqualTo(1)
+    }
+
+    private fun createViewModel(scheduler: TrackingScheduler): TrackingViewModel {
+        val orchestrator = FakePermissionOrchestrator()
+        return TrackingViewModel(
+            trackingScheduler = scheduler,
+            permissionOrchestrator = orchestrator
+        )
     }
 
     private class FakeTrackingWorkScheduler : TrackingScheduler {

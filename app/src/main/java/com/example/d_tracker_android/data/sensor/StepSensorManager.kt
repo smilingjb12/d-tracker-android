@@ -7,6 +7,7 @@ import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.os.Handler
 import android.os.HandlerThread
+import com.example.d_tracker_android.core.work.TrackingWorkConstants
 import com.example.d_tracker_android.data.local.StepPreferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -20,10 +21,6 @@ class StepSensorManager @Inject constructor(
     @ApplicationContext context: Context,
     private val dataStore: StepPreferencesDataStore
 ) {
-    companion object {
-        private const val SENSOR_TIMEOUT_MS = 30_000L
-    }
-
     private val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
     private val stepSensor = sensorManager.getDefaultSensor(Sensor.TYPE_STEP_COUNTER)
 
@@ -34,7 +31,7 @@ class StepSensorManager @Inject constructor(
 
         val sensorThread = HandlerThread("StepSensorThread").apply { start() }
         return try {
-            val rawReading = withTimeout(SENSOR_TIMEOUT_MS) {
+            val rawReading = withTimeout(TrackingWorkConstants.SENSOR_TIMEOUT_MS) {
                 awaitSensorReading(sensorThread)
             }
             dataStore.updateFromReading(rawReading)
