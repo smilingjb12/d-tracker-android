@@ -1,6 +1,6 @@
 package com.example.d_tracker_android.data.remote
 
-import okhttp3.RequestBody
+import com.example.d_tracker_android.domain.model.TrackerData
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.Header
@@ -12,6 +12,6 @@ interface TrackerApi {
     suspend fun sendTrackerData(
         @Url url: String,
         @Header("authorization-key") authorizationKey: String,
-        @Body requestBody: RequestBody
+        @Body data: TrackerData
     ): Response<Unit>
 }

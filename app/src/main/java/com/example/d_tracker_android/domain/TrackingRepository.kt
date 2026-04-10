@@ -1,18 +1,13 @@
 package com.example.d_tracker_android.domain
 
-import com.example.d_tracker_android.BuildConfig
 import com.example.d_tracker_android.data.battery.BatteryProvider
-import com.example.d_tracker_android.data.location.Coordinates
 import com.example.d_tracker_android.data.location.LocationProvider
 import com.example.d_tracker_android.data.remote.TrackerApi
 import com.example.d_tracker_android.data.sensor.StepSensorManager
 import com.example.d_tracker_android.domain.model.SendOutcome
 import com.example.d_tracker_android.domain.model.TrackerData
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.RequestBody.Companion.toRequestBody
 import javax.inject.Inject
+import javax.inject.Named
 import javax.inject.Singleton
 
 @Singleton
@@ -21,19 +16,15 @@ class TrackingRepository @Inject constructor(
     private val batteryProvider: BatteryProvider,
     private val stepSensorManager: StepSensorManager,
     private val trackerApi: TrackerApi,
-    private val json: Json
+    @Named("trackerServerUrl") private val serverUrl: String,
+    @Named("trackerAuthorizationKey") private val authorizationKey: String
 ) {
-    companion object {
-        private val JSON_MEDIA_TYPE = "application/json".toMediaType()
-    }
-
     suspend fun sendLatestData(): SendOutcome {
         val payload = collectData()
-        val body = json.encodeToString(payload).toRequestBody(JSON_MEDIA_TYPE)
         val response = trackerApi.sendTrackerData(
-            url = BuildConfig.TRACKER_SERVER_URL,
-            authorizationKey = BuildConfig.TRACKER_AUTHORIZATION_KEY,
-            requestBody = body
+            url = serverUrl,
+            authorizationKey = authorizationKey,
+            data = payload
         )
         return response.code().toSendOutcome()
     }
