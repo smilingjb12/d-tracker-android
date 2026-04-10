@@ -11,8 +11,8 @@ import androidx.work.CoroutineWorker
 import androidx.work.ForegroundInfo
 import androidx.work.WorkerParameters
 import com.example.d_tracker_android.R
-import com.example.d_tracker_android.feature.tracking.SendOutcome
-import com.example.d_tracker_android.feature.tracking.TrackingRepository
+import com.example.d_tracker_android.domain.TrackingRepository
+import com.example.d_tracker_android.domain.model.SendOutcome
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 
